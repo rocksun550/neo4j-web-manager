@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neo4j 数据库操作中心</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .stats-container {
+            background-color: white;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stats-title {
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .stat-item {
+            display: inline-block;
+            margin-right: 25px;
+            padding: 5px 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-right: 5px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .labels-container {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f7ff;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .label-item {
+            display: inline-block;
+            background-color: white;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            padding: 3px 8px;
+            margin: 5px;
+            font-size: 14px;
+        }
+
+        .label-count {
+            display: inline-block;
+            background-color: #f0f0f0;
+            color: #666;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .button-container {
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 70%;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* 可视化模态框特殊样式 */
+        #visualizeModal .modal-content {
+            width: 90%;
+            max-width: 1200px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .visualization-container {
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+            min-height: 500px;
+            cursor: default;
+        }
+
+        /* SVG图层用于绘制关系线条 */
+        .relationships-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* 让鼠标事件穿透到下方的节点 */
+            z-index: 1;
+        }
+
+        .nodes-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        /* 关系线条上的标签 */
+        .relationship-label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            pointer-events: auto; /* 允许点击关系标签 */
+            z-index: 3;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* 提示信息样式 */
+        .visualization-info {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+
+        label {
+            display: block;
+            margin: 15px 0 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        #readResult {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: "Courier New", monospace;
+        }
+
+        .submit-btn {
+            background-color: #2ecc71;
+            margin-top: 15px;
+            padding: 10px 25px;
+            font-size: 16px;
+        }
+
+        .submit-btn:hover {
+            background-color: #27ae60;
+        }
+
+        /* 节点样式 */
+        .node {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            user-select: none;
+            touch-action: none;
+            z-index: 2;
+        }
+
+        .node:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .node.dragging {
+            cursor: grabbing;
+            transform: scale(1.08);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+
+        .node.loaded {
+            box-shadow: 0 0 0 2px #2ecc71, 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .node-label {
+            text-align: center;
+            padding: 5px;
+            pointer-events: none;
+        }
+
+        /* 属性弹窗样式 */
+        .properties-popup {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            max-width: 300px;
+            pointer-events: auto;
+        }
+
+        .properties-popup h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .property-item {
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .property-key {
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        /* 统一视觉系统 */
+        :root {
+            --bg: #f4f7fb;
+            --surface: rgba(255, 255, 255, 0.92);
+            --surface-soft: #f8fafc;
+            --text: #172033;
+            --muted: #667085;
+            --line: #e3e8f0;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #059669;
+            --danger: #dc2626;
+            --violet: #7c3aed;
+            --amber: #d97706;
+            --shadow: 0 18px 50px rgba(31, 42, 68, 0.10);
+            --radius: 18px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.12), transparent 30%),
+                radial-gradient(circle at 92% 12%, rgba(124, 58, 237, 0.10), transparent 26%),
+                var(--bg);
+            font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+        }
+
+        .app-shell {
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 56px 0 72px;
+        }
+
+        .hero { margin-bottom: 30px; }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            color: var(--text);
+            font-size: clamp(30px, 5vw, 48px);
+            line-height: 1.15;
+            letter-spacing: -0.04em;
+        }
+
+        .hero-description {
+            max-width: 680px;
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .stats-container {
+            margin: 0 0 24px;
+            padding: 22px;
+            border: 1px solid rgba(227, 232, 240, 0.9);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+        }
+
+        .stats-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .stats-title {
+            margin: 0;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        #statsContent {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin: 0;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: var(--surface-soft);
+        }
+
+        .stat-label { color: var(--muted); font-size: 13px; }
+        .stat-value { color: var(--text); font-size: 25px; line-height: 1.2; }
+
+        .labels-container {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            background: #f8fbff;
+        }
+
+        .labels-title { margin-bottom: 9px; color: var(--text); font-weight: 700; }
+
+        .label-item {
+            margin: 5px 6px 5px 0;
+            padding: 6px 9px;
+            border-radius: 999px;
+            box-shadow: 0 2px 8px rgba(31, 42, 68, 0.05);
+        }
+
+        .button-container {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin: 0;
+        }
+
+        button {
+            margin: 0;
+            border: 0;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #fff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        button:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        button:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.25); outline-offset: 3px; }
+
+        .action-btn {
+            min-height: 88px;
+            padding: 18px;
+            text-align: left;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--line);
+            box-shadow: 0 8px 24px rgba(31, 42, 68, 0.07);
+        }
+
+        .action-btn:hover {
+            background: #fff;
+            border-color: #bfdbfe;
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.12);
+        }
+
+        .action-btn strong, .action-btn small { display: block; }
+        .action-btn strong { margin-bottom: 4px; font-size: 16px; }
+        .action-btn small { color: var(--muted); font-weight: 500; }
+        .action-btn.danger:hover { border-color: #fecaca; box-shadow: 0 14px 30px rgba(220, 38, 38, 0.10); }
+        .action-btn.violet:hover { border-color: #ddd6fe; box-shadow: 0 14px 30px rgba(124, 58, 237, 0.10); }
+        .action-btn.amber:hover { border-color: #fde68a; box-shadow: 0 14px 30px rgba(217, 119, 6, 0.10); }
+
+        .secondary-btn {
+            padding: 9px 13px;
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .secondary-btn:hover { background: var(--surface-soft); }
+
+        .modal {
+            z-index: 1000;
+            padding: 32px 20px;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(7px);
+        }
+
+        .modal-content {
+            position: relative;
+            width: min(680px, 100%);
+            max-width: none;
+            margin: 0 auto;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+        }
+
+        #visualizeModal .modal-content {
+            width: min(1200px, 100%);
+            max-width: none;
+            height: calc(100vh - 64px);
+            max-height: none;
+        }
+
+        .modal h2 { margin: 0 44px 6px 0; font-size: 24px; }
+        .modal h3 { margin: 24px 0 8px; color: var(--text) !important; font-size: 15px; }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 22px;
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
+            float: none;
+            border-radius: 50%;
+            color: var(--muted);
+            font-size: 27px;
+            line-height: 1;
+        }
+
+        .close:hover, .close:focus { background: var(--surface-soft); color: var(--text); }
+
+        label { margin: 18px 0 7px; color: #344054; font-size: 13px; }
+
+        input[type="text"], textarea {
+            width: 100%;
+            border: 1px solid #d0d5dd;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        input[type="text"] { min-height: 44px; padding: 10px 12px; }
+        textarea { min-height: 96px; margin: 0; padding: 12px; font-family: "SFMono-Regular", Consolas, monospace; }
+        input:focus, textarea:focus { outline: 0; border-color: #60a5fa; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10); }
+
+        .submit-btn { margin-top: 22px; padding: 11px 20px; background: var(--primary); font-size: 14px; }
+        .submit-btn:hover { background: var(--primary-dark); }
+        #deleteModal .submit-btn { background: var(--danger); }
+
+        #readResult {
+            min-height: 56px;
+            margin-top: 18px;
+            padding: 14px;
+            border-color: var(--line);
+            border-radius: 12px;
+            background: var(--surface-soft);
+            color: #344054;
+            white-space: pre-wrap;
+        }
+
+        .visualization-container {
+            min-height: 420px;
+            border-color: var(--line);
+            border-radius: 14px;
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 22px 22px;
+        }
+
+        .visualization-info { padding: 9px 11px; border-radius: 10px; background: #eff6ff; color: #475467; }
+        .node { border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 7px 18px rgba(15, 23, 42, 0.20); }
+        .relationship-label { border: 1px solid var(--line); background: rgba(255, 255, 255, 0.94); color: #475467; }
+        .properties-popup { border-color: var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+
+        @media (max-width: 760px) {
+            .app-shell { width: min(100% - 24px, 1180px); padding: 32px 0 48px; }
+            #statsContent, .button-container { grid-template-columns: 1fr; }
+            .stats-heading { align-items: flex-start; flex-direction: column; }
+            .modal { padding: 12px; }
+            .modal-content { padding: 24px 18px; }
+            #visualizeModal .modal-content { height: calc(100vh - 24px); }
+            .visualization-container { min-height: 360px; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app-shell">
+    <header class="hero">
+        <p class="eyebrow">Graph workspace</p>
+        <h1>Neo4j 数据操作中心</h1>
+        <p class="hero-description">在一个清晰的工作台中管理节点、关系和图谱数据。</p>
+    </header>
+
+    <!-- 实体数量统计区域 -->
+    <div class="stats-container">
+        <div class="stats-heading">
+            <div class="stats-title">数据库概览</div>
+            <button id="showLabelsBtn" class="secondary-btn">查看节点标签</button>
+        </div>
+        <div id="statsContent">
+            <div class="stat-item">
+                <span class="stat-label">总节点数：</span>
+                <span class="stat-value" id="totalNodes">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">总关系数：</span>
+                <span class="stat-value" id="totalRelationships">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">节点标签数：</span>
+                <span class="stat-value" id="labelCount">-</span>
+            </div>
+        </div>
+
+        <!-- 节点标签列表显示区域 -->
+        <div class="labels-container" id="labelsContainer">
+            <div class="labels-title">节点标签及数量</div>
+            <div id="labelsList"></div>
+        </div>
+    </div>
+
+    <div class="button-container">
+        <button class="action-btn" onclick="openCreateModal()">
+            <strong>创建节点</strong><small>添加一个新的图数据库实体</small>
+        </button>
+        <button class="action-btn" onclick="openReadModal()">
+            <strong>读取节点</strong><small>按标签查看节点数据</small>
+        </button>
+        <button class="action-btn" onclick="openUpdateModal()">
+            <strong>更新节点</strong><small>匹配并修改节点属性</small>
+        </button>
+        <button class="action-btn danger" onclick="openDeleteModal()">
+            <strong>删除节点</strong><small>删除节点及其关联关系</small>
+        </button>
+        <button class="action-btn amber" onclick="openVisualizeModal()">
+            <strong>可视化图谱</strong><small>探索节点与关系网络</small>
+        </button>
+        <button class="action-btn violet" onclick="openCreateRelationshipModal()">
+            <strong>创建关系</strong><small>连接两个已有节点</small>
+        </button>
+    </div>
+
+    <!-- 创建节点模态框 -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('createModal')">&times;</span>
+            <h2>创建新节点</h2>
+            <label for="createLabel">节点标签:</label>
+            <input type="text" id="createLabel" name="createLabel" placeholder="例如: Person">
+            <label for="createProperties">节点属性 (JSON 格式):</label>
+            <textarea id="createProperties" name="createProperties" placeholder='例如: {"name":"王二哈", "age":20}'></textarea>
+            <button class="submit-btn" onclick="createNode()">提交创建</button>
+        </div>
+    </div>
+
+    <!-- 读取节点模态框 -->
+    <div id="readModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('readModal')">&times;</span>
+            <h2>读取节点</h2>
+            <label for="readLabel">节点标签:</label>
+            <input type="text" id="readLabel" name="readLabel" placeholder="例如: Person">
+            <button class="submit-btn" onclick="readNodes()">读取数据</button>
+            <div id="readResult"></div>
+        </div>
+    </div>
+
+    <!-- 更新节点模态框 -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('updateModal')">&times;</span>
+            <h2>更新节点</h2>
+            <label for="updateLabel">节点标签:</label>
+            <input type="text" id="updateLabel" name="updateLabel" placeholder="例如: Person">
+            <label for="updateOldProperties">匹配条件 (旧属性 JSON 格式):</label>
+            <textarea id="updateOldProperties" name="updateOldProperties" placeholder='例如: {"name":"王二哈"}'></textarea>
+            <label for="updateNewProperties">更新值 (新属性 JSON 格式):</label>
+            <textarea id="updateNewProperties" name="updateNewProperties" placeholder='例如: {"age":21, "major":"计算机"}'></textarea>
+            <button class="submit-btn" onclick="updateNode()">提交更新</button>
+        </div>
+    </div>
+
+    <!-- 删除节点模态框 -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('deleteModal')">&times;</span>
+            <h2>删除节点</h2>
+            <label for="deleteLabel">节点标签:</label>
+            <input type="text" id="deleteLabel" name="deleteLabel" placeholder="例如: Person">
+            <label for="deleteProperties">匹配条件 (属性 JSON 格式):</label>
+            <textarea id="deleteProperties" name="deleteProperties" placeholder='例如: {"name":"王二哈", "age":21}'></textarea>
+            <button class="submit-btn" onclick="deleteNode()">确认删除</button>
+        </div>
+    </div>
+
+    <!-- 可视化节点模态框 -->
+    <div id="visualizeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('visualizeModal')">&times;</span>
+            <h2>节点与关系可视化</h2>
+            <p class="visualization-info">提示：双击节点可加载其关联的实体和关系</p>
+            <label for="visualizeLabel">初始节点标签 (留空显示所有):</label>
+            <input type="text" id="visualizeLabel" name="visualizeLabel" placeholder="例如: Person">
+            <button class="submit-btn" onclick="visualizeNodes()">图形显示</button>
+            <div id="visualizationInfo" class="visualization-info" style="display: none;"></div>
+
+            <!-- 可视化容器，包含两个图层：关系层和节点层 -->
+            <div class="visualization-container" id="visualizationContainer">
+                <!-- SVG用于绘制关系线条 -->
+                <svg class="relationships-layer" id="relationshipsLayer"></svg>
+                <!-- 节点容器 -->
+                <div class="nodes-layer" id="nodesLayer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建关系模态框 -->
+    <div id="createRelationshipModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('createRelationshipModal')">&times;</span>
+            <h2>创建节点关系</h2>
+
+            <!-- 1. 起始节点信息 -->
+            <h3 style="color: #3498db; margin-top: 20px;">1. 起始节点（关系来源）</h3>
+            <label for="relStartLabel">起始节点标签:</label>
+            <input type="text" id="relStartLabel" name="relStartLabel" placeholder="例如: Person">
+            <label for="relStartProps">起始节点匹配属性 (JSON，需唯一，如{"name":"王二哈"}):</label>
+            <textarea id="relStartProps" name="relStartProps" placeholder='{"name":"王二哈"}'></textarea>
+
+            <!-- 2. 结束节点信息 -->
+            <h3 style="color: #e74c3c; margin-top: 20px;">2. 结束节点（关系目标）</h3>
+            <label for="relEndLabel">结束节点标签:</label>
+            <input type="text" id="relEndLabel" name="relEndLabel" placeholder="例如: School">
+            <label for="relEndProps">结束节点匹配属性 (JSON，需唯一，如{"name":"天津工业大学"}):</label>
+            <textarea id="relEndProps" name="relEndProps" placeholder='{"name":"天津工业大学"}'></textarea>
+
+            <!-- 3. 关系信息 -->
+            <h3 style="color: #2ecc71; margin-top: 20px;">3. 关系信息</h3>
+            <label for="relType">关系类型 (如STUDIES_AT、WORKS_AT):</label>
+            <input type="text" id="relType" name="relType" placeholder="例如: STUDIES_AT">
+            <label for="relProps">关系属性 (JSON，可选，如{"start_year":"2020"}):</label>
+            <textarea id="relProps" name="relProps" placeholder='{"start_year":"2020"}'></textarea>
+
+            <!-- 提交按钮 -->
+            <button class="submit-btn" onclick="createRelationship()">提交创建关系</button>
+        </div>
+    </div>
+
+    </main>
+
+    <script>
+        // 颜色池，用于给不同标签的节点分配不同颜色
+        const COLOR_POOL = {
+            "Person": "#3498db",
+            "School": "#e74c3c",
+            "Company": "#2ecc71",
+            "City": "#f39c12",
+            "Country": "#9b59b6",
+            "Default": "#34495e"
+        };
+
+        // 存储已加载的节点和关系数据
+        let nodesData = {};  // {nodeId: {id, label, properties, x, y, size}}
+        let relationshipsData = {};  // {relId: {id, startNodeId, endNodeId, type, properties}}
+
+        // 用于存储当前显示的属性弹窗
+        let currentPopup = null;
+
+        // 拖拽相关变量
+        let draggedNode = null;
+        let dragOffset = { x: 0, y: 0 };
+        let isDragging = false;
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+
+        function formatValue(value) {
+            return typeof value === 'object' && value !== null
+                ? JSON.stringify(value)
+                : String(value ?? '');
+        }
+
+        // 页面加载完成后初始化
+        $(document).ready(function() {
+            // 加载统计数据
+            loadStatistics();
+            // 设置定时刷新（每10秒）
+            setInterval(loadStatistics, 10000);
+
+            // 绑定显示节点标签按钮事件
+            document.getElementById('showLabelsBtn').addEventListener('click', toggleLabelsList);
+        });
+
+        // 加载并更新统计信息
+        function loadStatistics() {
+            $.ajax({
+                type: "GET",
+                url: "/statistics",
+                success: function (data) {
+                    // 更新统计数字
+                    document.getElementById('totalNodes').textContent = data.total_nodes;
+                    document.getElementById('totalRelationships').textContent = data.total_relationships;
+                    document.getElementById('labelCount').textContent = data.label_count;
+                },
+                error: function (error) {
+                    console.error("加载统计数据失败:", error);
+                }
+            });
+        }
+
+        // 切换节点标签列表的显示/隐藏
+        function toggleLabelsList() {
+            const container = document.getElementById('labelsContainer');
+            const listElement = document.getElementById('labelsList');
+            const button = document.getElementById('showLabelsBtn');
+
+            // 如果已经显示，则隐藏
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                button.textContent = '查看节点标签';
+                return;
+            }
+
+            // 显示加载状态
+            listElement.innerHTML = '<div style="color: #666;">加载中...</div>';
+            container.style.display = 'block';
+            button.textContent = '收起节点标签';
+
+            // 从后端获取标签列表（包含数量）
+            $.ajax({
+                type: "GET",
+                url: "/labels",
+                success: function (data) {
+                    if (data.labels && data.labels.length > 0) {
+                        // 生成标签列表HTML，包含数量信息
+                        let labelsHtml = '';
+                        data.labels.forEach(item => {
+                            const label = item.label;
+                            const count = item.count;
+                            // 根据标签获取对应的颜色
+                            const color = COLOR_POOL[label] || COLOR_POOL["Default"];
+                            labelsHtml += `<div class="label-item" style="border-color: ${color};">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color}; margin-right: 5px;"></span>
+                                ${escapeHtml(label)}
+                                <span class="label-count">${count}个节点</span>
+                            </div>`;
+                        });
+                        listElement.innerHTML = labelsHtml;
+                    } else {
+                        listElement.innerHTML = '<div style="color: #666;">数据库中没有节点标签</div>';
+                    }
+                },
+                error: function (error) {
+                    listElement.innerHTML = `<div style="color: #e74c3c;">加载失败: ${error.responseJSON ? error.responseJSON.error : '未知错误'}</div>`;
+                    console.error("加载标签列表失败:", error);
+                }
+            });
+        }
+
+        // 打开各模态框的函数
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'block';
+            modal.setAttribute('aria-hidden', 'false');
+            const firstInput = modal.querySelector('input, textarea, button');
+            if (firstInput) setTimeout(() => firstInput.focus(), 0);
+        }
+
+        function openCreateModal() {
+            openModal('createModal');
+        }
+
+        function openReadModal() {
+            openModal('readModal');
+        }
+
+        function openUpdateModal() {
+            openModal('updateModal');
+        }
+
+        function openDeleteModal() {
+            openModal('deleteModal');
+        }
+
+        function openVisualizeModal() {
+            openModal('visualizeModal');
+            // 重置可视化数据
+            resetVisualization();
+        }
+
+        function openCreateRelationshipModal() {
+            openModal('createRelationshipModal');
+            // 清空之前的输入
+            document.getElementById('relStartLabel').value = '';
+            document.getElementById('relStartProps').value = '';
+            document.getElementById('relEndLabel').value = '';
+            document.getElementById('relEndProps').value = '';
+            document.getElementById('relType').value = '';
+            document.getElementById('relProps').value = '';
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            // 关闭弹窗时移除属性弹窗
+            if (currentPopup) {
+                currentPopup.remove();
+                currentPopup = null;
+            }
+            // 重置拖拽状态
+            resetDragState();
+            // 关闭模态框后刷新统计数据
+            loadStatistics();
+        }
+
+        // 重置拖拽状态
+        function resetDragState() {
+            if (draggedNode) {
+                draggedNode.classList.remove('dragging');
+            }
+            draggedNode = null;
+            dragOffset = { x: 0, y: 0 };
+            isDragging = false;
+        }
+
+        // 重置可视化数据和界面
+        function resetVisualization() {
+            nodesData = {};
+            relationshipsData = {};
+            document.getElementById('nodesLayer').innerHTML = '';
+            document.getElementById('relationshipsLayer').innerHTML = '';
+            document.getElementById('visualizationInfo').style.display = 'none';
+            resetDragState();
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let i = 0; i < modals.length; i++) {
+                if (event.target == modals[i]) {
+                    modals[i].style.display = 'none';
+                    if (currentPopup) {
+                        currentPopup.remove();
+                        currentPopup = null;
+                    }
+                    resetDragState();
+                    // 关闭模态框后刷新统计数据
+                    loadStatistics();
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            const openModalElement = [...document.querySelectorAll('.modal')]
+                .find(modal => modal.style.display === 'block');
+            if (openModalElement) closeModal(openModalElement.id);
+        });
+
+        // 获取节点颜色（根据标签）
+        function getNodeColor(label) {
+            return COLOR_POOL[label] || COLOR_POOL[label.toLowerCase()] || COLOR_POOL["Default"];
+        }
+
+        // 生成节点在容器内的随机位置（围绕中心分布）
+        function getRandomPosition(container, size, centerX, centerY, distance = 100) {
+            const containerRect = container.getBoundingClientRect();
+            const maxX = containerRect.width - size;
+            const maxY = containerRect.height - size;
+
+            // 如果提供了中心坐标，则围绕中心生成随机点
+            if (centerX !== undefined && centerY !== undefined) {
+                // 生成随机角度和距离
+                const angle = Math.random() * Math.PI * 2;
+                const randDistance = distance + Math.random() * 50;
+
+                // 计算新位置
+                let x = centerX + Math.cos(angle) * randDistance - size/2;
+                let y = centerY + Math.sin(angle) * randDistance - size/2;
+
+                // 确保在容器内
+                x = Math.max(0, Math.min(x, maxX));
+                y = Math.max(0, Math.min(y, maxY));
+
+                return { x, y };
+            }
+
+            // 否则在整个容器内随机分布
+            const x = Math.floor(Math.random() * maxX);
+            const y = Math.floor(Math.random() * maxY);
+            return { x, y };
+        }
+
+        // 显示节点属性弹窗
+        function showNodeProperties(node, properties, event) {
+            if (isDragging) return;
+
+            if (currentPopup) {
+                currentPopup.remove();
+            }
+
+            const popup = document.createElement('div');
+            popup.className = 'properties-popup';
+
+            let content = `<h3>节点属性</h3>`;
+            for (const [key, value] of Object.entries(properties)) {
+                content += `<div class="property-item"><span class="property-key">${escapeHtml(key)}:</span> ${escapeHtml(formatValue(value))}</div>`;
+            }
+
+            popup.innerHTML = content;
+
+            const container = document.getElementById('visualizationContainer');
+            container.appendChild(popup);
+
+            const rect = container.getBoundingClientRect();
+            const x = event.clientX - rect.left + 10;
+            const y = event.clientY - rect.top + 10;
+
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            currentPopup = popup;
+
+            const closeOnOutsideClick = (e) => {
+                if (!popup.contains(e.target) && e.target !== node && !isDragging) {
+                    popup.remove();
+                    currentPopup = null;
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            };
+
+            setTimeout(() => {
+                document.addEventListener('click', closeOnOutsideClick);
+            }, 100);
+        }
+
+        // 显示关系属性弹窗
+        function showRelationshipProperties(relId, properties, event) {
+            if (isDragging) return;
+
+            if (currentPopup) {
+                currentPopup.remove();
+            }
+
+            const relationship = relationshipsData[relId];
+            if (!relationship) return;
+
+            const popup = document.createElement('div');
+            popup.className = 'properties-popup';
+
+            let content = `<h3>关系属性 (${escapeHtml(relationship.type)})</h3>`;
+            content += `<div class="property-item"><span class="property-key">类型:</span> ${escapeHtml(relationship.type)}</div>`;
+            for (const [key, value] of Object.entries(properties)) {
+                content += `<div class="property-item"><span class="property-key">${escapeHtml(key)}:</span> ${escapeHtml(formatValue(value))}</div>`;
+            }
+
+            popup.innerHTML = content;
+
+            const container = document.getElementById('visualizationContainer');
+            container.appendChild(popup);
+
+            const rect = container.getBoundingClientRect();
+            const x = event.clientX - rect.left + 10;
+            const y = event.clientY - rect.top + 10;
+
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            currentPopup = popup;
+
+            const closeOnOutsideClick = (e) => {
+                if (!popup.contains(e.target) && !isDragging) {
+                    popup.remove();
+                    currentPopup = null;
+                    document.removeEventListener('click', closeOnOutsideClick);
+                }
+            };
+
+            setTimeout(() => {
+                document.addEventListener('click', closeOnOutsideClick);
+            }, 100);
+        }
+
+        // 开始拖拽节点
+        function startDrag(node, nodeId, event) {
+            if (currentPopup) {
+                currentPopup.remove();
+                currentPopup = null;
+            }
+
+            if (!nodesData[nodeId]) {
+                console.error("节点数据不存在，无法拖拽:", nodeId);
+                return;
+            }
+
+            draggedNode = node;
+            isDragging = true;
+            node.classList.add('dragging');
+
+            const nodeRect = node.getBoundingClientRect();
+            const containerRect = document.getElementById('visualizationContainer').getBoundingClientRect();
+
+            dragOffset.x = event.clientX - nodeRect.left;
+            dragOffset.y = event.clientY - nodeRect.top;
+
+            event.stopPropagation();
+            event.preventDefault();
+
+            // 使用命名函数而不是匿名函数，便于移除事件监听
+            function handleMouseMove(e) {
+                dragNode(e, nodeId);
+            }
+
+            function handleMouseUp() {
+                endDrag(nodeId);
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                document.removeEventListener('mouseleave', handleMouseUp);
+            }
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('mouseleave', handleMouseUp);
+        }
+
+        // 拖拽节点
+        function dragNode(event, nodeId) {
+            if (!isDragging || !draggedNode || !nodesData[nodeId]) return;
+
+            const container = document.getElementById('visualizationContainer');
+            const containerRect = container.getBoundingClientRect();
+            const nodeSize = nodesData[nodeId].size;
+
+            // 计算新位置
+            let newX = event.clientX - containerRect.left - dragOffset.x;
+            let newY = event.clientY - containerRect.top - dragOffset.y;
+
+            // 限制在容器内
+            newX = Math.max(0, Math.min(newX, containerRect.width - nodeSize));
+            newY = Math.max(0, Math.min(newY, containerRect.height - nodeSize));
+
+            // 更新节点位置
+            draggedNode.style.left = `${newX}px`;
+            draggedNode.style.top = `${newY}px`;
+
+            // 更新节点数据
+            nodesData[nodeId].x = newX;
+            nodesData[nodeId].y = newY;
+
+            // 实时更新所有相关关系线条
+            updateRelationshipsForNode(nodeId);
+
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        // 结束拖拽
+        function endDrag(nodeId) {
+            if (draggedNode) {
+                draggedNode.classList.remove('dragging');
+            }
+
+            // 拖拽结束后再次更新关系，确保线条位置正确
+            if (nodeId && nodesData[nodeId]) {
+                updateRelationshipsForNode(nodeId);
+            }
+
+            resetDragState();
+        }
+
+        // 创建SVG箭头标记
+        function createArrowMarker(svg) {
+            // 检查是否已存在箭头标记
+            if (svg.querySelector('marker#arrowhead')) return;
+
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('viewBox', '0 -5 10 10');
+            marker.setAttribute('refX', '25');
+            marker.setAttribute('refY', '0');
+            marker.setAttribute('orient', 'auto');
+            marker.setAttribute('markerWidth', '6');
+            marker.setAttribute('markerHeight', '6');
+            marker.setAttribute('xoverflow', 'visible');
+
+            const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            polygon.setAttribute('fill', '#999');
+            polygon.setAttribute('points', '0,-5 10,0 0,5');
+
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.insertBefore(defs, svg.firstChild);
+        }
+
+        // 绘制关系线条
+        function drawRelationship(relId, startNodeId, endNodeId, relType) {
+            const svg = document.getElementById('relationshipsLayer');
+            createArrowMarker(svg);
+
+            // 检查关系是否已存在
+            let line = svg.querySelector(`line[data-rel-id="${relId}"]`);
+            if (!line) {
+                line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('data-rel-id', relId);
+                line.setAttribute('stroke', '#999');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                svg.appendChild(line);
+            }
+
+            // 获取节点位置和大小
+            const startNode = nodesData[startNodeId];
+            const endNode = nodesData[endNodeId];
+
+            if (!startNode || !endNode) return;
+
+            // 计算线条起点和终点（从节点边缘开始，而不是中心）
+            const startX = startNode.x + startNode.size / 2;
+            const startY = startNode.y + startNode.size / 2;
+            const endX = endNode.x + endNode.size / 2;
+            const endY = endNode.y + endNode.size / 2;
+
+            // 计算节点半径
+            const startRadius = startNode.size / 2;
+            const endRadius = endNode.size / 2;
+
+            // 计算两点之间的角度
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance === 0) return;
+
+            // 计算线条的实际起点和终点（考虑节点半径）
+            const adjustedStartX = startX + (dx / distance) * startRadius;
+            const adjustedStartY = startY + (dy / distance) * startRadius;
+            const adjustedEndX = endX - (dx / distance) * endRadius;
+            const adjustedEndY = endY - (dy / distance) * endRadius;
+
+            // 设置线条属性
+            line.setAttribute('x1', adjustedStartX);
+            line.setAttribute('y1', adjustedStartY);
+            line.setAttribute('x2', adjustedEndX);
+            line.setAttribute('y2', adjustedEndY);
+
+            // 更新或创建关系标签
+            let label = document.querySelector(`.relationship-label[data-rel-id="${relId}"]`);
+            if (!label) {
+                label = document.createElement('div');
+                label.className = 'relationship-label';
+                label.setAttribute('data-rel-id', relId);
+                label.textContent = relType;
+                label.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const rel = relationshipsData[relId];
+                    if (rel) {
+                        showRelationshipProperties(relId, rel.properties, e);
+                    }
+                });
+                document.getElementById('visualizationContainer').appendChild(label);
+            }
+
+            // 定位关系标签（线条中间）
+            const labelX = adjustedStartX + (adjustedEndX - adjustedStartX) / 2 - 20;
+            const labelY = adjustedStartY + (adjustedEndY - adjustedStartY) / 2 - 10;
+            label.style.left = `${labelX}px`;
+            label.style.top = `${labelY}px`;
+        }
+
+        // 更新与指定节点相关的所有关系
+        function updateRelationshipsForNode(nodeId) {
+            if (!nodeId) return;
+
+            // 遍历所有关系，更新与当前节点相关的关系线条
+            Object.values(relationshipsData).forEach(rel => {
+                if (rel.startNodeId === nodeId || rel.endNodeId === nodeId) {
+                    // 确保两个节点都存在
+                    if (nodesData[rel.startNodeId] && nodesData[rel.endNodeId]) {
+                        drawRelationship(rel.id, rel.startNodeId, rel.endNodeId, rel.type);
+                    } else {
+                        console.warn(`关系 ${rel.id} 的关联节点不存在，无法绘制线条`);
+                    }
+                }
+            });
+        }
+
+        // 更新所有关系线条
+        function updateAllRelationships() {
+            Object.values(relationshipsData).forEach(rel => {
+                drawRelationship(rel.id, rel.startNodeId, rel.endNodeId, rel.type);
+            });
+        }
+
+        // 添加节点到可视化界面
+        function addNodeToVisualization(node) {
+            // 如果节点已存在，则不重复添加
+            if (nodesData[node.id]) return null;
+
+            const container = document.getElementById('visualizationContainer');
+            const nodesLayer = document.getElementById('nodesLayer');
+
+            // 计算节点大小（根据属性数量）
+            const baseSize = 60;
+            const propCount = Object.keys(node.properties || {}).length;
+            const nodeSize = Math.min(baseSize + propCount * 5, 120);
+
+            // 确定节点位置
+            let position;
+            const containerRect = container.getBoundingClientRect();
+
+            // 确保容器有尺寸
+            if (containerRect.width === 0 || containerRect.height === 0) {
+                console.error("可视化容器尺寸为0，无法正确放置节点");
+                // 提供默认位置
+                position = { x: 100, y: 100 };
+            } else {
+                const centerX = containerRect.width / 2 - nodeSize / 2;
+                const centerY = containerRect.height / 2 - nodeSize / 2;
+
+                if (Object.keys(nodesData).length === 0) {
+                    // 第一个节点放在中心
+                    position = { x: centerX, y: centerY };
+                } else {
+                    // 后续节点围绕中心分布
+                    position = getRandomPosition(container, nodeSize, centerX, centerY);
+                }
+            }
+
+            // 保存节点数据
+            const nodeLabel = node.label || node.labels || "Node";
+            nodesData[node.id] = {
+                id: node.id,
+                label: nodeLabel,
+                properties: node.properties || {},
+                x: position.x,
+                y: position.y,
+                size: nodeSize
+            };
+
+            // 创建节点元素
+            const nodeElement = document.createElement('div');
+            nodeElement.className = 'node';
+            nodeElement.setAttribute('data-node-id', node.id);
+            nodeElement.style.width = `${nodeSize}px`;
+            nodeElement.style.height = `${nodeSize}px`;
+            nodeElement.style.left = `${position.x}px`;
+            nodeElement.style.top = `${position.y}px`;
+            nodeElement.style.backgroundColor = getNodeColor(nodeLabel);
+
+            // 显示节点的主要属性（优先显示name）
+            let displayText = nodeLabel.substring(0, 4);
+            if (node.properties && node.properties.name) {
+                displayText = node.properties.name.substring(0, 6);
+            } else if (node.properties && node.properties.id) {
+                displayText = `ID: ${node.properties.id.toString().substring(0, 4)}`;
+            } else if (node.properties) {
+                const firstProp = Object.values(node.properties)[0];
+                if (firstProp !== undefined && firstProp !== null) {
+                    displayText = firstProp.toString().substring(0, 6);
+                }
+            }
+
+            const nodeLabelElement = document.createElement('div');
+            nodeLabelElement.className = 'node-label';
+            nodeLabelElement.textContent = displayText;
+            nodeElement.appendChild(nodeLabelElement);
+
+            // 添加事件监听
+            // 单击显示属性
+            nodeElement.addEventListener('click', (event) => {
+                if (!isDragging) {
+                    event.stopPropagation();
+                    showNodeProperties(nodeElement, node.properties || {}, event);
+                }
+            });
+
+            // 双击加载关联节点
+            nodeElement.addEventListener('dblclick', (event) => {
+                event.stopPropagation();
+                loadRelatedNodes(node.id, nodeElement);
+            });
+
+            // 鼠标按下开始拖拽
+            nodeElement.addEventListener('mousedown', (event) => {
+                if (event.button === 0) { // 左键
+                    startDrag(nodeElement, node.id, event);
+                }
+            });
+
+            // 添加到图层
+            nodesLayer.appendChild(nodeElement);
+
+            return nodeElement;
+        }
+
+        // 添加关系到可视化界面
+        function addRelationshipToVisualization(relationship) {
+            // 如果关系已存在，则不重复添加
+            if (relationshipsData[relationship.id]) return;
+
+            // 保存关系数据
+            relationshipsData[relationship.id] = {
+                id: relationship.id,
+                startNodeId: relationship.startNodeId,
+                endNodeId: relationship.endNodeId,
+                type: relationship.type,
+                properties: relationship.properties
+            };
+
+            // 绘制关系线条
+            drawRelationship(relationship.id, relationship.startNodeId, relationship.endNodeId, relationship.type);
+        }
+
+        // 加载节点的关联节点和关系
+        function loadRelatedNodes(nodeId, nodeElement) {
+            // 显示加载状态
+            nodeElement.style.opacity = "0.7";
+            nodeElement.style.cursor = "wait";
+
+            // 从服务器获取关联节点和关系
+            $.ajax({
+                type: "GET",
+                url: `/node/${nodeId}/related`,
+                success: function (response) {
+                    // 恢复节点样式
+                    nodeElement.style.opacity = "1";
+                    nodeElement.style.cursor = "";
+                    nodeElement.classList.add('loaded');
+
+                    // 获取当前节点的位置，用于围绕它放置新节点
+                    const centerX = nodesData[nodeId].x + nodesData[nodeId].size / 2;
+                    const centerY = nodesData[nodeId].y + nodesData[nodeId].size / 2;
+                    const container = document.getElementById('visualizationContainer');
+
+                    let newNodesCount = 0;
+
+                    // 添加关联节点和关系
+                    response.related.forEach(item => {
+                        // 确保关联节点数据正确
+                        if (!item.node || !item.node.id) {
+                            console.error("无效的关联节点数据:", item);
+                            return;
+                        }
+
+                        // 添加关联节点（如果不存在）
+                        if (!nodesData[item.node.id]) {
+                            const relatedNode = addNodeToVisualization(item.node);
+                            newNodesCount++;
+
+                            // 确保节点被正确添加到DOM
+                            if (relatedNode) {
+                                // 调整新节点位置，围绕当前节点分布
+                                const nodeSize = nodesData[item.node.id].size;
+                                const position = getRandomPosition(container, nodeSize, centerX, centerY);
+
+                                relatedNode.style.left = `${position.x}px`;
+                                relatedNode.style.top = `${position.y}px`;
+
+                                // 更新节点数据中的位置信息
+                                nodesData[item.node.id].x = position.x;
+                                nodesData[item.node.id].y = position.y;
+                            }
+                        }
+
+                        // 创建关系数据
+                        const relId = item.relationship.id;
+                        let startNodeId, endNodeId;
+
+                        // 根据关系方向确定起始和结束节点
+                        if (item.relationship.direction === 'outgoing') {
+                            startNodeId = nodeId;
+                            endNodeId = item.node.id;
+                        } else {
+                            startNodeId = item.node.id;
+                            endNodeId = nodeId;
+                        }
+
+                        // 添加关系（如果不存在）
+                        if (!relationshipsData[relId]) {
+                            addRelationshipToVisualization({
+                                id: relId,
+                                startNodeId: startNodeId,
+                                endNodeId: endNodeId,
+                                type: item.relationship.type,
+                                properties: item.relationship.properties
+                            });
+                        }
+                    });
+
+                    // 更新所有关系显示
+                    updateAllRelationships();
+
+                    // 显示信息
+                    const infoElement = document.getElementById('visualizationInfo');
+                    infoElement.textContent = `已加载 ${newNodesCount} 个新关联节点和 ${response.related.length} 个关系`;
+                    infoElement.style.display = 'block';
+                },
+                error: function (error) {
+                    // 恢复节点样式
+                    nodeElement.style.opacity = "1";
+                    nodeElement.style.cursor = "";
+
+                    const errorMsg = error.responseJSON
+                        ? error.responseJSON.error
+                        : "加载关联节点失败";
+                    alert("错误: " + errorMsg);
+                    console.error("加载关联节点时出错:", error);
+                }
+            });
+        }
+
+        // 初始可视化节点
+        function visualizeNodes() {
+            const label = document.getElementById('visualizeLabel').value;
+
+            // 重置可视化
+            resetVisualization();
+
+            const container = document.getElementById('visualizationContainer');
+            const infoElement = document.getElementById('visualizationInfo');
+
+            if (!label) {
+                infoElement.textContent = "将显示所有节点，双击任意节点可加载其关联实体和关系";
+                infoElement.style.display = 'block';
+            }
+
+            // 显示加载状态
+            container.style.cursor = "wait";
+
+            // 从服务器获取初始节点数据
+            $.ajax({
+                type: "GET",
+                url: "/read" + (label ? "?label=" + encodeURIComponent(label) : ""),
+                success: function (nodes) {
+                    container.style.cursor = "";
+
+                    if (nodes.length === 0) {
+                        document.getElementById('nodesLayer').innerHTML =
+                            '<div style="text-align: center; padding: 20px;">没有找到该标签的节点</div>';
+                        return;
+                    }
+
+                    // 添加节点到可视化
+                    nodes.forEach(node => {
+                        addNodeToVisualization(node);
+                    });
+
+                    // 显示信息
+                    infoElement.textContent = `已加载 ${nodes.length} 个节点，双击任意节点可查看其关联实体和关系`;
+                    infoElement.style.display = 'block';
+                },
+                error: function (error) {
+                    container.style.cursor = "";
+                    document.getElementById('nodesLayer').innerHTML =
+                        '<div style="text-align: center; padding: 20px; color: #e74c3c;">加载失败</div>';
+                    alert("可视化失败: " + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.statusText));
+                }
+            });
+        }
+
+        // 创建节点
+        function createNode() {
+            var label = document.getElementById('createLabel').value;
+            var properties = document.getElementById('createProperties').value;
+
+            if (!label) {
+                alert("请输入节点标签");
+                return;
+            }
+
+            try {
+                var props = JSON.parse(properties);
+            } catch (e) {
+                alert("JSON格式错误: " + e.message);
+                return;
+            }
+
+            var data = {
+                "label": label,
+                "properties": props
+            };
+
+            $.ajax({
+                type: "POST",
+                url: "/create",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert("节点创建成功: " + JSON.stringify(response));
+                    closeModal('createModal');
+                },
+                error: function (error) {
+                    alert("节点创建失败: " + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.statusText));
+                }
+            });
+        }
+
+        // 读取节点
+        function readNodes() {
+            var label = document.getElementById('readLabel').value;
+
+            if (!label) {
+                alert("请输入节点标签");
+                return;
+            }
+
+            $.ajax({
+                type: "GET",
+                url: "/read?label=" + encodeURIComponent(label),
+                success: function (response) {
+                    document.getElementById('readResult').textContent =
+                        "读取到的节点:\n" + JSON.stringify(response, null, 2);
+                },
+                error: function (error) {
+                    alert("节点读取失败: " + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.statusText));
+                }
+            });
+        }
+
+        // 更新节点
+        function updateNode() {
+            var label = document.getElementById('updateLabel').value;
+            var oldProperties = document.getElementById('updateOldProperties').value;
+            var newProperties = document.getElementById('updateNewProperties').value;
+
+            if (!label) {
+                alert("请输入节点标签");
+                return;
+            }
+
+            try {
+                var oldProps = JSON.parse(oldProperties);
+                var newProps = JSON.parse(newProperties);
+            } catch (e) {
+                alert("JSON格式错误: " + e.message);
+                return;
+            }
+
+            var data = {
+                "label": label,
+                "old_properties": oldProps,
+                "new_properties": newProps
+            };
+
+            $.ajax({
+                type: "PUT",
+                url: "/update",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert("节点更新成功: " + JSON.stringify(response));
+                    closeModal('updateModal');
+                },
+                error: function (error) {
+                    alert("节点更新失败: " + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.statusText));
+                }
+            });
+        }
+
+        // 删除节点
+        function deleteNode() {
+            var label = document.getElementById('deleteLabel').value;
+            var properties = document.getElementById('deleteProperties').value;
+
+            if (!label) {
+                alert("请输入节点标签");
+                return;
+            }
+
+            try {
+                var props = JSON.parse(properties);
+            } catch (e) {
+                alert("JSON格式错误: " + e.message);
+                return;
+            }
+
+            if (!confirm("确定要删除匹配的节点吗？此操作不可恢复。")) {
+                return;
+            }
+
+            var data = {
+                "label": label,
+                "properties": props
+            };
+
+            $.ajax({
+                type: "DELETE",
+                url: "/delete",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert("节点删除成功: " + JSON.stringify(response));
+                    closeModal('deleteModal');
+                },
+                error: function (error) {
+                    alert("节点删除失败: " + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.statusText));
+                }
+            });
+        }
+
+        // 创建节点关系
+        function createRelationship() {
+            // 1. 读取前端输入
+            const startLabel = document.getElementById('relStartLabel').value.trim();
+            const startPropsStr = document.getElementById('relStartProps').value.trim();
+            const endLabel = document.getElementById('relEndLabel').value.trim();
+            const endPropsStr = document.getElementById('relEndProps').value.trim();
+            const relType = document.getElementById('relType').value.trim();
+            const relPropsStr = document.getElementById('relProps').value.trim() || '{}';
+
+            // 2. 基础验证
+            if (!startLabel || !startPropsStr || !endLabel || !endPropsStr || !relType) {
+                alert("请填写所有必填项（起始节点标签/属性、结束节点标签/属性、关系类型）");
+                return;
+            }
+
+            // 3. JSON格式验证
+            let startProps, endProps, relProps;
+            try {
+                startProps = JSON.parse(startPropsStr);
+                endProps = JSON.parse(endPropsStr);
+                relProps = JSON.parse(relPropsStr);
+            } catch (e) {
+                alert("JSON格式错误：" + e.message + "（请检查属性输入）");
+                return;
+            }
+
+            // 4. 验证属性是字典
+            if (typeof startProps !== 'object' || startProps === null || Array.isArray(startProps)) {
+                alert("起始节点属性必须是JSON对象（如{\"name\":\"王二哈\"}）");
+                return;
+            }
+            if (typeof endProps !== 'object' || endProps === null || Array.isArray(endProps)) {
+                alert("结束节点属性必须是JSON对象（如{\"name\":\"天津工业大学\"}）");
+                return;
+            }
+            if (typeof relProps !== 'object' || relProps === null || Array.isArray(relProps)) {
+                alert("关系属性必须是JSON对象（可选，如{\"start_year\":\"2020\"}）");
+                return;
+            }
+
+            // 5. 构造请求数据
+            const requestData = {
+                "start_label": startLabel,
+                "start_properties": startProps,
+                "end_label": endLabel,
+                "end_properties": endProps,
+                "relationship_type": relType,
+                "relationship_properties": relProps
+            };
+
+            // 6. 调用后端API创建关系
+            $.ajax({
+                type: "POST",
+                url: "/create-relationship",
+                contentType: "application/json",
+                data: JSON.stringify(requestData),
+                success: function (response) {
+                    const msg = `关系创建成功！\n
+起始节点：${JSON.stringify(response.start_node)}\n
+结束节点：${JSON.stringify(response.end_node)}\n
+关系类型：${response.relationship.type}\n
+关系属性：${JSON.stringify(response.relationship.properties)}`;
+                    alert(msg);
+                    closeModal('createRelationshipModal');
+                },
+                error: function (error) {
+                    const errorMsg = error.responseJSON
+                        ? JSON.stringify(error.responseJSON.error)
+                        : error.statusText;
+                    alert("创建关系失败：" + errorMsg);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

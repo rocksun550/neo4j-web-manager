@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 本地配置与敏感信息
+.env
+.env.*
+!.env.example
+
+# 编辑器
+.idea/
+.vscode/
+*.iml
+
+# 日志、备份和系统文件
+*.log
+*.bak
+.DS_Store
+Thumbs.db
