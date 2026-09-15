@@ -2,8 +2,9 @@
 
 一个基于 Flask 和 Neo4j 的轻量级图数据库管理界面，支持节点和关系的常用操作，并提供可交互的图谱可视化。
 
-##展示
+展示
 <img width="1912" height="902" alt="image" src="https://github.com/user-attachments/assets/0667de2c-b38a-41a7-8017-058434fe1c2b" />
+<img width="1392" height="667" alt="image" src="https://github.com/user-attachments/assets/09a75909-4c6c-40ec-8349-61d1dcd9d6b5" />
 
 ## 功能
 
